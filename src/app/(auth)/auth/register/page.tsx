@@ -1,30 +1,45 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 import { ArrowRight } from "lucide-react";
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [name, setName] = useState("");
+  const [tel, setTel] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isHovered, setIsHovered] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
-
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   };
 
-  const handleLogin = async () => {
+  const validatePhone = (tel: string) => {
+    const phoneRegex = /^[0-9]{10}$/;
+    return phoneRegex.test(tel);
+  };
+
+  const handleRegister = async () => {
     setError("");
     setIsHovered(false);
 
-    if (!email || !password) {
-      setError("Please enter both email and password.");
+    if (!name || !tel || !email || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    if (name.length < 2) {
+      setError("Name must be at least 2 characters.");
+      return;
+    }
+
+    if (!validatePhone(tel)) {
+      setError("Please enter a valid 10-digit phone number.");
       return;
     }
 
@@ -42,13 +57,7 @@ export default function LoginPage() {
 
     try {
       // จำลอง API call
-      // ในโปรเจคจริงใช้: const result = await signIn('credentials', { email, password, redirect: false });
-
       await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // จำลองว่า login ไม่สำเร็จ (สำหรับ demo)
-      // ในโปรเจคจริง: if (!result?.error) { router.push('/dashboard'); } else { setError('...'); }
-      setError("That email and password combination is incorrect.");
     } catch (err) {
       setError("An error occurred. Please try again.");
     } finally {
@@ -59,7 +68,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg shadow-sm w-full max-w-md p-8">
-        <h1 className="text-3xl font-bold text-center mb-8">Sign in</h1>
+        <h1 className="text-3xl font-bold text-center mb-8">Create Account</h1>
 
         <div className="space-y-4">
           {/* Error Message */}
@@ -68,6 +77,41 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2 uppercase">
+              Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setError("");
+              }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Your name"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-2 uppercase">
+              Phone Number
+            </label>
+            <input
+              type="tel"
+              value={tel}
+              onChange={(e) => {
+                setTel(e.target.value);
+                setError("");
+              }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="0812345678"
+              disabled={isLoading}
+              maxLength={10}
+            />
+          </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-2 uppercase">
@@ -102,7 +146,7 @@ export default function LoginPage() {
               disabled={isLoading}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  handleLogin();
+                  handleRegister();
                 }
               }}
             />
@@ -116,7 +160,7 @@ export default function LoginPage() {
             className="w-full mt-6"
           >
             <button
-              onClick={handleLogin}
+              onClick={handleRegister}
               disabled={isLoading}
               className={`w-full bg-black text-white py-3 font-medium transition-all duration-300 flex items-center justify-center border-0 relative ${
                 isHovered ? "rounded-none" : "rounded-lg"
@@ -129,8 +173,8 @@ export default function LoginPage() {
                   size={20}
                   className={`absolute left-1/2 transition-all duration-300 ${
                     isHovered
-                      ? "opacity-100 -translate-x-10"
-                      : "opacity-0 -translate-x-12"
+                      ? "opacity-100 -translate-x-18"
+                      : "opacity-0 -translate-x-20"
                   }`}
                 />
               )}
@@ -142,7 +186,7 @@ export default function LoginPage() {
                       (isHovered ? "translate-x-2" : "translate-x-0")
                 }`}
               >
-                {isLoading ? "Loading..." : "Log in"}
+                {isLoading ? "Creating..." : "Create Account"}
               </span>
             </button>
           </div>
@@ -150,12 +194,12 @@ export default function LoginPage() {
 
         <div className="mt-6 text-center space-y-3">
           <div className="text-sm text-gray-600">
-            No account?{" "}
+            Already have an account?{" "}
             <button
               className="text-[#007BE5] hover:underline cursor-pointer"
-              onClick={() => router.push("/auth/register")}
+              onClick={() => router.push("/auth/login")}
             >
-              Create one
+              Sign in
             </button>
           </div>
         </div>
