@@ -19,34 +19,42 @@ export default function SensorCard({ sensor, value }: SensorCardProps) {
   const config = getSensorConfig(sensor, value);
 
   return (
-    <div className="w-full bg-white rounded-2xl shadow-sm p-4 flex flex-col gap-3">
-      {/* top row: icon + badge */}
-      <div className="flex items-start justify-between">
-        {/* icon bubble */}
-        <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
-          {config.icon}
+    <div className="w-full flex bg-white rounded-2xl shadow-sm overflow-hidden">
+      {/* Left color bar */}
+      <div
+        className={`w-2 rounded-l-2xl ${getStatusColor(config.statusLevel)}`}
+      />
+
+      {/* Card content */}
+      <div className="flex-1 p-4 flex flex-col gap-3">
+        {/* top row: icon + badge */}
+        <div className="flex items-start justify-between">
+          {/* icon bubble */}
+          <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
+            {config.icon}
+          </div>
+
+          {config.statusLabel && (
+            <span
+              className={`px-3 py-1 rounded-lg text-xs font-medium ${getStatusColor(
+                config.statusLevel
+              )}`}
+            >
+              {config.statusLabel}
+            </span>
+          )}
         </div>
 
-        {config.statusLabel && (
-          <span
-            className={`px-3 py-1 rounded-lg text-xs font-medium ${getStatusColor(
-              config.statusLevel
-            )}`}
-          >
-            {config.statusLabel}
-          </span>
-        )}
-      </div>
+        {/* label */}
+        <p className="text-sm text-neutral-500">{config.label}</p>
 
-      {/* label */}
-      <p className="text-sm text-neutral-500">{config.label}</p>
-
-      {/* value */}
-      <div className="flex items-baseline gap-1">
-        <span className="text-3xl font-semibold">{config.displayValue}</span>
-        {config.unit && (
-          <span className="text-sm text-neutral-400">{config.unit}</span>
-        )}
+        {/* value */}
+        <div className="flex items-baseline gap-1">
+          <span className="text-3xl font-semibold">{config.displayValue}</span>
+          {config.unit && (
+            <span className="text-sm text-neutral-400">{config.unit}</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -72,7 +80,7 @@ function getSensorConfig(
         <DoorClosed size={20} className="text-orange-500" />
       ),
       statusLabel: "", // ไม่ต้องมี badge
-      statusLevel: "normal" as StatusLevel,
+      statusLevel: isOpen ? "normal" : "critical",
     };
   }
 
