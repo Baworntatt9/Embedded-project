@@ -6,8 +6,8 @@ type EventType = "motion" | "sound" | "delivery";
 type EventItem = {
   id: number;
   title: string;
-  time: string;      // HH:mm
-  date: string;      // YYYY-MM-DD
+  time: string; // HH:mm
+  date: string; // YYYY-MM-DD
   type: EventType;
   thumbnail?: string;
 };
@@ -107,7 +107,9 @@ export default function RecordActivity() {
       {/* List of cards */}
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {filteredEvents.length === 0 ? (
-          <p className="text-xs text-neutral-400">No activity for this filter</p>
+          <p className="text-xs text-neutral-400">
+            No activity for this filter
+          </p>
         ) : (
           filteredEvents.map((event) => (
             <EventCard
