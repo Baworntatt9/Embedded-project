@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ActivityTabs from "@/components/activity/ActivityTabs";
 import LiveActivity from "@/components/activity/LiveActivity";
+import RecordActivity from "@/components/activity/RecordActivity";
 // import RecordActivity from "@/components/activity/RecordActivity";
 
 type Tab = "live" | "record";
@@ -19,8 +20,8 @@ export default function ActivitySection() {
       {tab === "live" ? (
         <LiveActivity />
       ) : (
-        <div />
-        // <RecordActivity />
+        
+        <RecordActivity />
       )}
     </section>
   );
