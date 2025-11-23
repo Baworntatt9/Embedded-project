@@ -6,7 +6,7 @@ export default function Topbar() {
       {/* Left: Logo + Title */}
       <div className="flex items-center gap-2 ml-1">
         <BedDouble size={22} />
-        <span className="text-lg font-medium tracking-wide leading-none translate-y-px">
+        <span className="text-lg font-medium tracking-wide leading-none translate-y-[0.5px]">
           Onbedded
         </span>
       </div>

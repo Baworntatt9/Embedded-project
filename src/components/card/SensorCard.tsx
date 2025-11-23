@@ -80,7 +80,9 @@ function getSensorConfig(
         <DoorClosed size={20} className="text-orange-500" />
       ),
       statusLabel: "", // ไม่ต้องมี badge
-      statusLevel: isOpen ? "normal" : "critical",
+      statusLevel: isOpen
+        ? ("normal" as StatusLevel)
+        : ("critical" as StatusLevel),
     };
   }
 

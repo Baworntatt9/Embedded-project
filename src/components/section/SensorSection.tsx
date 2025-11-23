@@ -16,7 +16,7 @@ export default function SensorSection() {
         <h1 className="text-xl font-semibold">Dashboard</h1>
 
         <button
-          className="px-3 py-1 border rounded text-sm active:scale-95 transition"
+          className="px-3 py-1 border rounded text-sm active:scale-95 transition cursor-pointer"
           onClick={refetch}
         >
           Refresh

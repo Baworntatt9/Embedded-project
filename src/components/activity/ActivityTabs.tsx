@@ -14,7 +14,7 @@ export default function ActivityTabs({
       <button
         type="button"
         onClick={() => onChange("live")}
-        className={`flex-1 text-sm py-2 rounded-full transition text-center
+        className={`flex-1 text-sm py-2 rounded-full transition text-center cursor-pointer
           ${
             activeTab === "live"
               ? "bg-[#bcded7] text-black"
@@ -26,7 +26,7 @@ export default function ActivityTabs({
       <button
         type="button"
         onClick={() => onChange("record")}
-        className={`flex-1 text-sm py-2 rounded-full transition text-center
+        className={`flex-1 text-sm py-2 rounded-full transition text-center cursor-pointer
           ${
             activeTab === "record"
               ? "bg-[#bcded7] text-black"
