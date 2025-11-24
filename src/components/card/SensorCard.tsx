@@ -107,7 +107,7 @@ function getSensorConfig(
     return {
       label: "Temperature",
       unit: "°C",
-      displayValue: value.toFixed(0),
+      displayValue: value.toFixed(1),
       icon: <Thermometer size={20} className="text-orange-500" />,
       statusLabel: label,
       statusLevel: status,
@@ -159,7 +159,7 @@ function getSensorConfig(
     return {
       label: "Humidity",
       unit: "%",
-      displayValue: value.toFixed(0),
+      displayValue: value.toFixed(1),
       icon: <Droplets size={20} className="text-orange-500" />,
       statusLabel: label,
       statusLevel: status,
