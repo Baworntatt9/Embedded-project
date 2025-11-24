@@ -11,6 +11,8 @@ type EventItem = {
   thumbnail?: string;
 };
 
+//TestTest
+
 export default function AlertsPage() {
   const mockEvents: EventItem[] = [
     {
