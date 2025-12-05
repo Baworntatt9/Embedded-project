@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ref, listAll, getDownloadURL, getMetadata } from "firebase/storage";
+import { ref, listAll, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebaseClient";
 import EventCard from "../card/EventCard";
 import EventVideoModal from "../modal/EventVideoModal";
@@ -16,20 +16,30 @@ type EventItem = {
   videoUrl: string;
 };
 
-function formatDateTime(isoString: string) {
-  const d = new Date(isoString);
-  const pad = (n: number) => n.toString().padStart(2, "0");
+// จากชื่อไฟล์แบบ evt_20251205_114106_video.mp4
+function parseFromFileName(fileName: string) {
+  const nameNoExt = fileName.replace(/\.[^/.]+$/, ""); // evt_20251205_114106_video
+  const parts = nameNoExt.split("_"); // ["evt","20251205","114106","video"]
 
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
+  if (parts.length < 4) {
+    return {
+      date: "2025-01-01",
+      time: "00:00",
+      dateRaw: "20250101",
+      timeRaw: "000000",
+    };
+  }
 
-  return {
-    date: `${year}-${month}-${day}`,
-    time: `${hours}:${minutes}`,
-  };
+  const dateRaw = parts[1]; // 20251205
+  const timeRaw = parts[2]; // 114106
+
+  const date = `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(
+    6,
+    8
+  )}`; // 2025-12-05
+  const time = `${timeRaw.slice(0, 2)}:${timeRaw.slice(2, 4)}`; // 11:41
+
+  return { date, time, dateRaw, timeRaw };
 }
 
 export default function RecordActivity() {
@@ -43,36 +53,29 @@ export default function RecordActivity() {
       try {
         // โฟลเดอร์ใน Firebase Storage
         const videosRef = ref(storage, "DetectMotionLogs/videos");
-
         const listResult = await listAll(videosRef);
 
-        // ดึงข้อมูลทุกไฟล์วิดีโอ
         const items: EventItem[] = await Promise.all(
           listResult.items.map(async (videoRef, index) => {
-            const fileName = videoRef.name; // ex: detect_motion_1.mp4
+            const fileName = videoRef.name; // ex: evt_20251205_114106_video.mp4
+            const videoUrl = await getDownloadURL(videoRef);
 
-            // baseName = detect_motion_1
-            const baseName = fileName.replace(/\.[^/.]+$/, "");
+            // ✅ parse date/time จากชื่อไฟล์
+            const { date, time, dateRaw, timeRaw } =
+              parseFromFileName(fileName);
 
-            // image ที่ชื่อเดียวกันใน images/
+            // ✅ รูปที่คู่กัน: evt_20251205_114106_image.jpg
+            const imageFileName = `evt_${dateRaw}_${timeRaw}_image.jpg`;
             const imageRef = ref(
               storage,
-              `DetectMotionLogs/images/${baseName}.jpg`
+              `DetectMotionLogs/images/${imageFileName}`
             );
 
-            const [videoUrl, thumbUrl, metadata] = await Promise.all([
-              getDownloadURL(videoRef),
-              getDownloadURL(imageRef).catch(() => undefined),
-              getMetadata(videoRef).catch(() => undefined),
-            ]);
-
-            let date = "2025-01-01";
-            let time = "00:00";
-
-            if (metadata?.timeCreated) {
-              const dt = formatDateTime(metadata.timeCreated);
-              date = dt.date;
-              time = dt.time;
+            let thumbUrl: string | undefined;
+            try {
+              thumbUrl = await getDownloadURL(imageRef);
+            } catch {
+              thumbUrl = undefined;
             }
 
             return {
@@ -80,7 +83,7 @@ export default function RecordActivity() {
               title: "Motion Detected",
               date,
               time,
-              type: "motion",
+              type: "motion" as const,
               thumbnail: thumbUrl,
               videoUrl,
             };
@@ -96,7 +99,7 @@ export default function RecordActivity() {
 
         setEvents(items);
 
-        // set default เป็นวันที่ล่าสุดที่มี
+        // default: วันล่าสุดที่มี
         if (items.length > 0) {
           setSelectedDate(items[0].date);
         }
@@ -111,9 +114,9 @@ export default function RecordActivity() {
     loadEvents();
   }, []);
 
-  const filteredEvents = events.filter((event) => {
-    return selectedDate ? event.date === selectedDate : true;
-  });
+  const filteredEvents = events.filter((event) =>
+    selectedDate ? event.date === selectedDate : true
+  );
 
   return (
     <div className="w-full space-y-3">

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import EventCard from "@/components/card/EventCard";
 import EventVideoModal from "@/components/modal/EventVideoModal";
 import { storage } from "@/lib/firebaseClient";
-import { ref, listAll, getDownloadURL, getMetadata } from "firebase/storage";
+import { ref, listAll, getDownloadURL } from "firebase/storage";
 
 type EventItem = {
   id: number;
@@ -16,20 +16,36 @@ type EventItem = {
   videoUrl: string;
 };
 
-function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  const pad = (n: number) => n.toString().padStart(2, "0");
+// จากชื่อไฟล์แบบ evt_20251205_114106_video.mp4
+function parseFromFileName(fileName: string) {
+  const nameNoExt = fileName.replace(/\.[^/.]+$/, ""); // evt_20251205_114106_video
+  const parts = nameNoExt.split("_"); // ["evt","20251205","114106","video"]
 
-  return {
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
-  };
+  if (parts.length < 4) {
+    return {
+      date: "2025-01-01",
+      time: "00:00",
+      dateRaw: "20250101",
+      timeRaw: "000000",
+    };
+  }
+
+  const dateRaw = parts[1]; // 20251205
+  const timeRaw = parts[2]; // 114106
+
+  const date = `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(
+    6,
+    8
+  )}`; // 2025-12-05
+  const time = `${timeRaw.slice(0, 2)}:${timeRaw.slice(2, 4)}`; // 11:41
+
+  return { date, time, dateRaw, timeRaw };
 }
 
 export default function AlertsPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null); // 👈 state สำหรับ modal
+  const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -40,22 +56,23 @@ export default function AlertsPage() {
         const items: EventItem[] = await Promise.all(
           listResult.items.map(async (fileRef, i) => {
             const videoUrl = await getDownloadURL(fileRef);
-            const metadata = await getMetadata(fileRef);
 
-            const baseName = fileRef.name.replace(/\.[^/.]+$/, "");
+            // ✅ ดึง date/time จากชื่อไฟล์
+            const { date, time, dateRaw, timeRaw } = parseFromFileName(
+              fileRef.name
+            );
+
+            // ✅ สร้างชื่อรูปที่คู่กัน: evt_20251205_114106_image.jpg
+            const imageFileName = `evt_${dateRaw}_${timeRaw}_image.jpg`;
 
             let thumbUrl: string | undefined;
             try {
               thumbUrl = await getDownloadURL(
-                ref(storage, `DetectMotionLogs/images/${baseName}.jpg`)
+                ref(storage, `DetectMotionLogs/images/${imageFileName}`)
               );
             } catch {
               thumbUrl = undefined;
             }
-
-            const { date, time } = metadata.timeCreated
-              ? formatDateTime(metadata.timeCreated)
-              : { date: "2025-01-01", time: "00:00" };
 
             return {
               id: i + 1,
@@ -77,7 +94,7 @@ export default function AlertsPage() {
         });
 
         // กรอง 7 วันล่าสุด
-        const now = new Date().getTime();
+        const now = Date.now();
         const sevenDays = 7 * 24 * 60 * 60 * 1000;
 
         const last7days = items.filter((e) => {
@@ -119,7 +136,7 @@ export default function AlertsPage() {
               title={event.title}
               time={`${event.date} • ${event.time}`}
               thumbnail={event.thumbnail}
-              onClick={() => setSelectedEvent(event)} // 👈 สำคัญ
+              onClick={() => setSelectedEvent(event)}
             />
           ))
         )}
