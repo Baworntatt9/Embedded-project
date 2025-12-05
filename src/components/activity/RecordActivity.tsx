@@ -9,37 +9,62 @@ import EventVideoModal from "../modal/EventVideoModal";
 type EventItem = {
   id: number;
   title: string;
-  time: string; // HH:mm
-  date: string; // YYYY-MM-DD
+  time: string; // HH:mm (local)
+  date: string; // YYYY-MM-DD (local)
   type: "motion";
   thumbnail?: string;
   videoUrl: string;
+  timestamp: number; // ใช้เรียงและ filter
 };
 
-// จากชื่อไฟล์แบบ evt_20251205_114106_video.mp4
+// ===============================
+// 🔥 Parse จาก filename → Local time
+// ===============================
 function parseFromFileName(fileName: string) {
-  const nameNoExt = fileName.replace(/\.[^/.]+$/, ""); // evt_20251205_114106_video
-  const parts = nameNoExt.split("_"); // ["evt","20251205","114106","video"]
+  const nameNoExt = fileName.replace(/\.[^/.]+$/, "");
+  const parts = nameNoExt.split("_"); // ["evt", "20251205", "114106", "video"]
 
-  if (parts.length < 4) {
+  if (parts.length < 3) {
     return {
       date: "2025-01-01",
       time: "00:00",
       dateRaw: "20250101",
       timeRaw: "000000",
+      timestamp: 0,
     };
   }
 
-  const dateRaw = parts[1]; // 20251205
-  const timeRaw = parts[2]; // 114106
+  const dateRaw = parts[1]; // YYYYMMDD
+  const timeRaw = parts[2]; // HHMMSS
 
-  const date = `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(
-    6,
-    8
-  )}`; // 2025-12-05
-  const time = `${timeRaw.slice(0, 2)}:${timeRaw.slice(2, 4)}`; // 11:41
+  const year = Number(dateRaw.slice(0, 4));
+  const month = Number(dateRaw.slice(4, 6)); // 01–12
+  const day = Number(dateRaw.slice(6, 8));
 
-  return { date, time, dateRaw, timeRaw };
+  const hour = Number(timeRaw.slice(0, 2));
+  const minute = Number(timeRaw.slice(2, 4));
+  const second = Number(timeRaw.slice(4, 6));
+
+  // 🕒 สร้าง Date จาก "UTC" ตามชื่อไฟล์
+  const utcDate = new Date(
+    Date.UTC(year, month - 1, day, hour, minute, second)
+  );
+
+  // 🇹🇭 แปลงเป็น Local (เครื่องผู้ใช้, ไทย = UTC+7)
+  const localDate = new Date(utcDate);
+
+  // ❌ ห้ามใช้ toISOString() เพราะมันแสดงวันที่ตาม UTC
+  const yyyy = localDate.getFullYear();
+  const mm = String(localDate.getMonth() + 1).padStart(2, "0");
+  const dd = String(localDate.getDate()).padStart(2, "0");
+
+  const hh = String(localDate.getHours()).padStart(2, "0");
+  const min = String(localDate.getMinutes()).padStart(2, "0");
+
+  const date = `${yyyy}-${mm}-${dd}`;
+  const time = `${hh}:${min}`;
+
+  return { date, time, dateRaw, timeRaw, timestamp: localDate.getTime() };
 }
 
 export default function RecordActivity() {
@@ -51,29 +76,25 @@ export default function RecordActivity() {
   useEffect(() => {
     const loadEvents = async () => {
       try {
-        // โฟลเดอร์ใน Firebase Storage
         const videosRef = ref(storage, "DetectMotionLogs/videos");
         const listResult = await listAll(videosRef);
 
         const items: EventItem[] = await Promise.all(
           listResult.items.map(async (videoRef, index) => {
-            const fileName = videoRef.name; // ex: evt_20251205_114106_video.mp4
+            const fileName = videoRef.name;
             const videoUrl = await getDownloadURL(videoRef);
 
-            // ✅ parse date/time จากชื่อไฟล์
-            const { date, time, dateRaw, timeRaw } =
+            const { date, time, dateRaw, timeRaw, timestamp } =
               parseFromFileName(fileName);
 
-            // ✅ รูปที่คู่กัน: evt_20251205_114106_image.jpg
-            const imageFileName = `evt_${dateRaw}_${timeRaw}_image.jpg`;
-            const imageRef = ref(
-              storage,
-              `DetectMotionLogs/images/${imageFileName}`
-            );
-
+            // รูปคู่กัน
+            const imgName = `evt_${dateRaw}_${timeRaw}_image.jpg`;
             let thumbUrl: string | undefined;
+
             try {
-              thumbUrl = await getDownloadURL(imageRef);
+              thumbUrl = await getDownloadURL(
+                ref(storage, `DetectMotionLogs/images/${imgName}`)
+              );
             } catch {
               thumbUrl = undefined;
             }
@@ -86,27 +107,24 @@ export default function RecordActivity() {
               type: "motion" as const,
               thumbnail: thumbUrl,
               videoUrl,
+              timestamp,
             };
           })
         );
 
-        // เรียงจากใหม่สุดไปเก่าสุด
-        items.sort((a, b) => {
-          const dA = new Date(`${a.date}T${a.time}:00`).getTime();
-          const dB = new Date(`${b.date}T${b.time}:00`).getTime();
-          return dB - dA;
-        });
+        // 🕒 เรียงใหม่สุด → เก่าสุด ด้วย timestamp
+        items.sort((a, b) => b.timestamp - a.timestamp);
 
         setEvents(items);
 
-        // default: วันล่าสุดที่มี
+        // เลือกวันที่ล่าสุดเป็น default
         if (items.length > 0) {
           setSelectedDate(items[0].date);
         }
 
         setLoading(false);
       } catch (err) {
-        console.error("Error loading events from storage:", err);
+        console.error("Error loading events:", err);
         setLoading(false);
       }
     };
@@ -114,6 +132,7 @@ export default function RecordActivity() {
     loadEvents();
   }, []);
 
+  // 🧹 Filter ตามวันที่
   const filteredEvents = events.filter((event) =>
     selectedDate ? event.date === selectedDate : true
   );
@@ -131,7 +150,6 @@ export default function RecordActivity() {
         />
       </div>
 
-      {/* Section title */}
       <p className="text-xs text-neutral-400">Motion Detected</p>
 
       {/* List */}
@@ -145,7 +163,7 @@ export default function RecordActivity() {
             <EventCard
               key={event.id}
               title={event.title}
-              time={event.time}
+              time={event.time} // ใช้เวลา local
               thumbnail={event.thumbnail}
               onClick={() => setSelectedEvent(event)}
             />

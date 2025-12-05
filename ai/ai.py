@@ -18,9 +18,9 @@ import threading
 # =========================
 # 1) Firebase init
 # =========================
-service_account_info = json.loads(os.getenv("FIREBASE_SERVICE_ACCOUNT"))
-
-cred = credentials.Certificate(service_account_info)
+cred = credentials.Certificate(
+    r"C:\Users\boonf\Desktop\Cedt year 2 term 1\Embedded System\Project\Frontend_Backend\embedded\ai\serviceAccount.json"
+)
 
 firebase_admin.initialize_app(
     cred, {"storageBucket": "embedded-1a2f1.firebasestorage.app"}

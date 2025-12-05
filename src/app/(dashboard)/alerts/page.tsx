@@ -9,37 +9,69 @@ import { ref, listAll, getDownloadURL } from "firebase/storage";
 type EventItem = {
   id: number;
   title: string;
-  time: string; // HH:mm
-  date: string; // YYYY-MM-DD
+  time: string; // HH:mm (local)
+  date: string; // YYYY-MM-DD (local)
   type: "motion";
   thumbnail?: string;
   videoUrl: string;
+  timestamp: number; // ใช้เรียงและ filter
 };
 
-// จากชื่อไฟล์แบบ evt_20251205_114106_video.mp4
+// -----------------------------
+// Parse date/time from filename
+// Example: evt_20251205_114106_video.mp4
+// -----------------------------
 function parseFromFileName(fileName: string) {
-  const nameNoExt = fileName.replace(/\.[^/.]+$/, ""); // evt_20251205_114106_video
-  const parts = nameNoExt.split("_"); // ["evt","20251205","114106","video"]
+  const nameNoExt = fileName.replace(/\.[^/.]+$/, "");
+  const parts = nameNoExt.split("_");
 
-  if (parts.length < 4) {
+  if (parts.length < 3) {
     return {
       date: "2025-01-01",
       time: "00:00",
       dateRaw: "20250101",
       timeRaw: "000000",
+      timestamp: 0,
     };
   }
 
   const dateRaw = parts[1]; // 20251205
   const timeRaw = parts[2]; // 114106
 
-  const date = `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(
-    6,
-    8
-  )}`; // 2025-12-05
-  const time = `${timeRaw.slice(0, 2)}:${timeRaw.slice(2, 4)}`; // 11:41
+  const year = Number(dateRaw.slice(0, 4));
+  const month = Number(dateRaw.slice(4, 6)); // 01–12
+  const day = Number(dateRaw.slice(6, 8));
 
-  return { date, time, dateRaw, timeRaw };
+  const hour = Number(timeRaw.slice(0, 2));
+  const minute = Number(timeRaw.slice(2, 4));
+  const second = Number(timeRaw.slice(4, 6));
+
+  // 🕒 สมมติว่า timestamp ในชื่อไฟล์เป็น UTC
+  const utcDate = new Date(
+    Date.UTC(year, month - 1, day, hour, minute, second)
+  );
+
+  // 🇹🇭 ให้ JS แปลงเป็นเวลา local (ไทย +7)
+  const localDate = new Date(utcDate);
+
+  // ❌ ห้ามใช้ toISOString() เพราะมันจะกลับไป UTC อีก
+  const yyyy = localDate.getFullYear();
+  const mm = String(localDate.getMonth() + 1).padStart(2, "0");
+  const dd = String(localDate.getDate()).padStart(2, "0");
+
+  const hh = String(localDate.getHours()).padStart(2, "0");
+  const min = String(localDate.getMinutes()).padStart(2, "0");
+
+  const date = `${yyyy}-${mm}-${dd}`; // local date
+  const time = `${hh}:${min}`; // local time
+
+  return {
+    date,
+    time,
+    dateRaw,
+    timeRaw,
+    timestamp: localDate.getTime(),
+  };
 }
 
 export default function AlertsPage() {
@@ -57,21 +89,19 @@ export default function AlertsPage() {
           listResult.items.map(async (fileRef, i) => {
             const videoUrl = await getDownloadURL(fileRef);
 
-            // ✅ ดึง date/time จากชื่อไฟล์
-            const { date, time, dateRaw, timeRaw } = parseFromFileName(
-              fileRef.name
-            );
+            const { date, time, dateRaw, timeRaw, timestamp } =
+              parseFromFileName(fileRef.name);
 
-            // ✅ สร้างชื่อรูปที่คู่กัน: evt_20251205_114106_image.jpg
-            const imageFileName = `evt_${dateRaw}_${timeRaw}_image.jpg`;
+            // หา thumbnail ชื่อเดียวกัน: evt_YYYYMMDD_HHMMSS_image.jpg
+            const imgName = `evt_${dateRaw}_${timeRaw}_image.jpg`;
+            let thumbnail: string | undefined;
 
-            let thumbUrl: string | undefined;
             try {
-              thumbUrl = await getDownloadURL(
-                ref(storage, `DetectMotionLogs/images/${imageFileName}`)
+              thumbnail = await getDownloadURL(
+                ref(storage, `DetectMotionLogs/images/${imgName}`)
               );
             } catch {
-              thumbUrl = undefined;
+              thumbnail = undefined;
             }
 
             return {
@@ -79,28 +109,22 @@ export default function AlertsPage() {
               title: "Motion Detected",
               date,
               time,
-              type: "motion" as const,
-              thumbnail: thumbUrl,
+              thumbnail,
               videoUrl,
+              type: "motion",
+              timestamp,
             };
           })
         );
 
-        // เรียงใหม่สุด → เก่าสุด
-        items.sort((a, b) => {
-          const aT = new Date(`${a.date}T${a.time}`).getTime();
-          const bT = new Date(`${b.date}T${b.time}`).getTime();
-          return bT - aT;
-        });
+        // ใหม่สุด → เก่าสุด
+        items.sort((a, b) => b.timestamp - a.timestamp);
 
         // กรอง 7 วันล่าสุด
         const now = Date.now();
-        const sevenDays = 7 * 24 * 60 * 60 * 1000;
-
-        const last7days = items.filter((e) => {
-          const t = new Date(`${e.date}T${e.time}`).getTime();
-          return now - t <= sevenDays;
-        });
+        const last7days = items.filter(
+          (e) => now - e.timestamp <= 7 * 24 * 60 * 60 * 1000
+        );
 
         setEvents(last7days);
         setLoading(false);
@@ -123,7 +147,7 @@ export default function AlertsPage() {
         </span>
       </div>
 
-      {/* List */}
+      {/* Event list */}
       <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-145px)]">
         {loading ? (
           <p className="text-xs text-neutral-400">Loading motion alerts...</p>
@@ -142,7 +166,7 @@ export default function AlertsPage() {
         )}
       </div>
 
-      {/* Modal แสดงวิดีโอ */}
+      {/* Video modal */}
       <EventVideoModal
         open={!!selectedEvent}
         event={selectedEvent}
