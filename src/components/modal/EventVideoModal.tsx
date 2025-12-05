@@ -23,15 +23,15 @@ export default function EventVideoModal({
         <button
           type="button"
           onClick={onClose}
-          className="absolute right-3 top-3 text-neutral-400 hover:text-neutral-600 text-xl leading-none"
+          className="absolute right-5 top-3 text-neutral-400 hover:text-neutral-600 text-2xl leading-none cursor-pointer"
         >
           ×
         </button>
 
-        <h2 className="text-base font-semibold text-neutral-900 pr-6">
+        <h2 className="text-base font-semibold text-neutral-900 pr-6 ml-1">
           {event.title}
         </h2>
-        <p className="text-xs text-neutral-500 mt-1">
+        <p className="text-xs text-neutral-500 mt-1 ml-1">
           {event.date} • {event.time}
         </p>
 

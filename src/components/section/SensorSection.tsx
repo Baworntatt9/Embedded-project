@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import SensorCard from "@/components/card/SensorCard";
 import { db } from "@/lib/firebaseClient";
 import { doc, onSnapshot } from "firebase/firestore";
+import { RotateCcw } from "lucide-react";
 
 export default function SensorSection() {
   const [data, setData] = useState<any>(null);
@@ -37,12 +38,11 @@ export default function SensorSection() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dashboard</h1>
 
-        {/* refresh ไม่ต้องใช้แล้ว เพราะ onSnapshot realtime อยู่แล้ว */}
         <button
-          className="px-3 py-1 border rounded text-sm active:scale-95 transition cursor-pointer"
+          className="p-2 border rounded-lg text-neutral-600 hover:bg-neutral-100 active:scale-95 transition"
           onClick={() => window.location.reload()}
         >
-          Reload
+          <RotateCcw className="w-4 h-4" />
         </button>
       </div>
 
