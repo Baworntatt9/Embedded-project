@@ -1,17 +1,16 @@
 import EventCard from "@/components/card/EventCard";
 
-type EventType = "motion" | "sound" | "delivery";
-
 type EventItem = {
   id: number;
   title: string;
   time: string; // HH:mm
   date: string; // YYYY-MM-DD
-  type: EventType;
+  type: "motion";
   thumbnail?: string;
 };
 
 export default function AlertsPage() {
+  // มีแต่ motion อย่างเดียว
   const mockEvents: EventItem[] = [
     {
       id: 1,
@@ -29,69 +28,48 @@ export default function AlertsPage() {
     },
     {
       id: 3,
-      title: "Sound Detected",
-      date: "2025-10-31",
-      time: "19:02",
-      type: "sound",
-    },
-    {
-      id: 4,
-      title: "Package Delivered",
-      date: "2025-10-30",
-      time: "16:45",
-      type: "delivery",
-    },
-    {
-      id: 5,
-      title: "Sound Detected",
-      date: "2025-10-30",
-      time: "09:12",
-      type: "sound",
-    },
-    {
-      id: 6,
       title: "Motion Detected",
       date: "2025-10-29",
       time: "14:20",
       type: "motion",
     },
     {
-      id: 7,
-      title: "Package Delivered",
-      date: "2025-10-29",
-      time: "10:00",
-      type: "delivery",
-    },
-    {
-      id: 8,
-      title: "Sound Detected",
-      date: "2025-10-28",
-      time: "08:45",
-      type: "sound",
-    },
-    {
-      id: 9,
+      id: 4,
       title: "Motion Detected",
       date: "2025-10-28",
       time: "07:30",
       type: "motion",
     },
     {
-      id: 10,
-      title: "Package Delivered",
-      date: "2025-10-27",
-      time: "18:15",
-      type: "delivery",
+      id: 5,
+      title: "Motion Detected",
+      date: "2025-10-28",
+      time: "07:30",
+      type: "motion",
+    },
+    {
+      id: 6,
+      title: "Motion Detected",
+      date: "2025-10-28",
+      time: "07:30",
+      type: "motion",
+    },
+    {
+      id: 7,
+      title: "Motion Detected",
+      date: "2025-10-28",
+      time: "07:30",
+      type: "motion",
     },
   ];
-  const filteredEvents = mockEvents;
 
-  // ตอนใช้จริงจะแสดงแค่ 7 วันล่าสุด
+  const filteredEvents = mockEvents; // ไม่มี filter เพราะมีเฉพาะ motion อยู่แล้ว
+
   return (
     <div className="p-4 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Alerts</h1>
+        <h1 className="text-xl font-semibold">Motion Alerts</h1>
         <span className="text-xs text-neutral-400">
           {filteredEvents.length} events
         </span>
@@ -100,7 +78,7 @@ export default function AlertsPage() {
       {/* List */}
       <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-145px)]">
         {filteredEvents.length === 0 ? (
-          <p className="text-xs text-neutral-400">No alerts at the moment</p>
+          <p className="text-xs text-neutral-400">No motion detected</p>
         ) : (
           filteredEvents.map((event) => (
             <EventCard

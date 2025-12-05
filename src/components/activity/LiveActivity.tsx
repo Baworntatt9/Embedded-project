@@ -1,6 +1,6 @@
 "use client";
 
-const STREAM_URL = "http://192.168.182.59:5000"; // เอา IP จริงของนายมาใส่
+const STREAM_URL = "http://192.168.182.59:5000";
 
 export default function LiveActivity() {
   return (
