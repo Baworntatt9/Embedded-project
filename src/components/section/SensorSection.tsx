@@ -1,25 +1,48 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import SensorCard from "@/components/card/SensorCard";
-import { useSensorReadings } from "@/hooks/useSensorReadings";
+import { db } from "@/lib/firebaseClient";
+import { doc, onSnapshot } from "firebase/firestore";
 
 export default function SensorSection() {
-  const { data, loading, error, refetch } = useSensorReadings();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const ref = doc(db, "sensorReadings", "current");
+
+    const unsub = onSnapshot(
+      ref,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setData(snapshot.data());
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Firestore error:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsub();
+  }, []);
 
   if (loading) return <div className="p-4">Loading...</div>;
-  if (error) return <div className="p-4">Error loading data</div>;
-  if (!data) return <div>No data</div>;
+  if (!data) return <div className="p-4">No data</div>;
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Dashboard</h1>
 
+        {/* refresh ไม่ต้องใช้แล้ว เพราะ onSnapshot realtime อยู่แล้ว */}
         <button
           className="px-3 py-1 border rounded text-sm active:scale-95 transition cursor-pointer"
-          onClick={refetch}
+          onClick={() => window.location.reload()}
         >
-          Refresh
+          Reload
         </button>
       </div>
 
