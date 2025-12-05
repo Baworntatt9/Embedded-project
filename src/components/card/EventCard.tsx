@@ -1,14 +1,24 @@
 type EventCardProps = {
   title: string;
   time: string;
-  thumbnail?: string; // optional ภาพถ้ามี
+  thumbnail?: string;
+  onClick?: () => void;
 };
 
-export default function EventCard({ title, time, thumbnail }: EventCardProps) {
+export default function EventCard({
+  title,
+  time,
+  thumbnail,
+  onClick,
+}: EventCardProps) {
   return (
-    <div className="w-full flex items-center justify-between bg-white rounded-2xl p-4 shadow-sm">
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center justify-between bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+    >
       {/* Left side */}
-      <div className="flex flex-col">
+      <div className="flex flex-col text-left">
         <span className="text-sm font-medium text-neutral-800">{title}</span>
         <span className="text-xs text-neutral-500 mt-1">{time}</span>
       </div>
@@ -23,6 +33,6 @@ export default function EventCard({ title, time, thumbnail }: EventCardProps) {
       ) : (
         <div className="w-20 h-12 rounded-lg bg-neutral-200" />
       )}
-    </div>
+    </button>
   );
 }
