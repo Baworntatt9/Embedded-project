@@ -24,3 +24,15 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* ปรับตำแหน่ง Toast ของ react-toastify */
+/* mobile: ย้ายลงล่างกลาง */
+@media (max-width: 640px) {
+  .onbedded-toast-container {
+    top: auto !important;
+    bottom: 1rem !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+  }
+}
