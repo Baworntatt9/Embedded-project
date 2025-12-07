@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 
+// send only controlDoor field
 export async function GET() {
   try {
     const docRef = adminDb.collection("sensorReadings").doc("current");
@@ -13,7 +14,10 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(snapshot.data());
+    const data = snapshot.data();
+    const controlDoor = data?.controlDoor ?? null;
+
+    return NextResponse.json({ controlDoor });
   } catch (err) {
     console.error("Error fetching sensor data:", err);
     return NextResponse.json(

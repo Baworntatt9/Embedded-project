@@ -33,7 +33,7 @@ print("[INFO] Firebase initialized")
 # =========================
 # 2) Config กล้อง + YOLO
 # =========================
-ESP32_URL = "http://192.168.182.97/stream"  # IP กล้อง
+ESP32_URL = "http://192.168.224.97/stream"  # IP กล้อง
 FRAME_WIDTH = 416
 FRAME_HEIGHT = 320
 

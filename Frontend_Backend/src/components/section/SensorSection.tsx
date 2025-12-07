@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import SensorCard from "@/components/card/SensorCard";
 import { db } from "@/lib/firebaseClient";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { RotateCcw } from "lucide-react";
 
 export default function SensorSection() {
@@ -30,6 +30,22 @@ export default function SensorSection() {
     return () => unsub();
   }, []);
 
+  const handleToggleControlDoor = async () => {
+    if (!data) return;
+
+    const current = Boolean(data.controlDoor); // true = locked, false = unlocked
+    const newValue = !current;
+
+    try {
+      // เขียนลง Firestore
+      await updateDoc(doc(db, "sensorReadings", "current"), {
+        controlDoor: newValue,
+      });
+    } catch (err) {
+      console.error("Failed to update controlDoor:", err);
+    }
+  };
+
   if (loading) return <div className="p-4">Loading...</div>;
   if (!data) return <div className="p-4">No data</div>;
 
@@ -51,6 +67,13 @@ export default function SensorSection() {
         <SensorCard sensor="light" value={data.light} />
         <SensorCard sensor="humidity" value={data.humidity} />
         <SensorCard sensor="doorStatus" value={data.doorStatus} />
+        <div className="col-span-2">
+          <SensorCard
+            sensor="controlDoor"
+            value={data.controlDoor}
+            onToggle={handleToggleControlDoor}
+          />
+        </div>
       </div>
     </section>
   );

@@ -77,7 +77,7 @@ export default function Topbar() {
           <Bell size={22} />
 
           {!loading && unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-[4px] flex items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold leading-none border border-neutral-800">
+            <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 flex items-center justify-center rounded-full bg-red-500 text-[10px] font-semibold leading-none border border-neutral-800">
               {displayCount}
             </span>
           )}
