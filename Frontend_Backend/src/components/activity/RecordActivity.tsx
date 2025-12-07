@@ -32,7 +32,7 @@ export default function RecordActivity() {
         />
       </div>
 
-      <p className="text-xs text-neutral-400">Motion Detected</p>
+      <p className="text-xs text-neutral-400">People Detected</p>
 
       {/* List */}
       <div className="space-y-3 max-h-96 overflow-y-auto">

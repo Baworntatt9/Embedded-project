@@ -6,7 +6,7 @@ import { Bell, BedDouble } from "lucide-react";
 import { toast } from "react-toastify";
 import { usePeopleAlerts } from "@/hooks/usePeopleAlerts";
 
-const LAST_SEEN_KEY = "motionAlerts_lastSeen";
+const LAST_SEEN_KEY = "peopleAlerts_lastSeen";
 
 export default function Topbar() {
   const router = useRouter();
