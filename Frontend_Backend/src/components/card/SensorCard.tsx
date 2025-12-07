@@ -136,14 +136,14 @@ function getSensorConfig(
     return {
       label: "Door Status",
       unit: "",
-      displayValue: isOpen ? "Open" : "Closed",
+      displayValue: isOpen ? "Closed" : "Open",
       icon: isOpen ? (
-        <DoorOpen size={20} className="text-orange-500" />
-      ) : (
         <DoorClosed size={20} className="text-orange-500" />
+      ) : (
+        <DoorOpen size={20} className="text-orange-500" />
       ),
       statusLabel: "",
-      statusLevel: isOpen ? "warning" : "normal",
+      statusLevel: isOpen ? "normal" : "warning",
     };
   }
 
