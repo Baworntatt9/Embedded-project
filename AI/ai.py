@@ -7,13 +7,13 @@ from firebase_admin import credentials, storage
 from datetime import datetime, timezone
 import tempfile
 import os
-import json
 import subprocess
 from pathlib import Path
 
 # สำหรับเว็บ live stream
 from flask import Flask, Response
 import threading
+import time
 
 # =========================
 # 1) Firebase init
@@ -23,7 +23,8 @@ cred = credentials.Certificate(
 )
 
 firebase_admin.initialize_app(
-    cred, {"storageBucket": "embedded-1a2f1.firebasestorage.app"}
+    cred,
+    {"storageBucket": "embedded-1a2f1.firebasestorage.app"},
 )
 
 bucket = storage.bucket()
@@ -33,19 +34,18 @@ print("[INFO] Firebase initialized")
 # =========================
 # 2) Config กล้อง + YOLO
 # =========================
-ESP32_URL = "http://192.168.224.97/stream"  # IP กล้อง
+ESP32_URL = "http://172.20.10.4/stream"  # IP กล้อง (MJPEG)
 FRAME_WIDTH = 416
 FRAME_HEIGHT = 320
 
-FPS_EST = 10
+FPS_EST = 10  # ประมาณการ FPS (ใช้กำหนดจำนวนเฟรมที่จะอัด)
 RECORD_SECONDS = 5
 FRAMES_TO_RECORD = FPS_EST * RECORD_SECONDS
-COOLDOWN_SECONDS = 30
+COOLDOWN_SECONDS = 10  # หลัง detect แล้วจะพักไม่ตรวจซ้ำช่วงนี้
 
 model = YOLO("yolov8n.pt")
 
-cap = cv2.VideoCapture(ESP32_URL)
-cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+cap = None  # จะเปิดในฟังก์ชัน open_capture()
 
 latest_frame = None
 frame_lock = threading.Lock()
@@ -61,7 +61,42 @@ fourcc = cv2.VideoWriter_fourcc(*"XVID")
 
 
 # =========================
-# 3) Helper: แปลง video เป็น H.264 MP4
+# 3) ฟังก์ชันเปิดกล้อง + retry
+# =========================
+def open_capture():
+    """
+    พยายามเชื่อมต่อ ESP32-CAM ใหม่ (วน retry จนกว่าจะสำเร็จ)
+    """
+    global cap
+
+    # ปิดของเก่าถ้ามี
+    if cap is not None:
+        try:
+            cap.release()
+        except Exception:
+            pass
+        cap = None
+
+    while True:
+        print("[CAP] trying to connect to ESP32...", ESP32_URL)
+        cap = cv2.VideoCapture(ESP32_URL)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        if cap.isOpened():
+            print("[CAP] connected to ESP32!")
+            return
+        else:
+            print("[CAP] failed to open. retry in 3s...")
+            try:
+                cap.release()
+            except Exception:
+                pass
+            cap = None
+            time.sleep(3)
+
+
+# =========================
+# 4) Helper: แปลง video เป็น H.264 MP4
 # =========================
 def convert_to_h264_mp4(input_path: str) -> str:
     input_path = os.path.abspath(input_path)
@@ -88,7 +123,7 @@ def convert_to_h264_mp4(input_path: str) -> str:
 
 
 # =========================
-# 4) Firebase upload
+# 5) Firebase upload helpers
 # =========================
 def upload_image_to_firebase(frame, event_id: str, people_count: int):
     filename = f"{event_id}_image.jpg"
@@ -128,16 +163,35 @@ def processing_loop():
     global latest_frame
     global recording, frames_left_to_record, video_writer
     global current_video_local_path, current_event_id, last_detect_time
+    global cap
+
+    # เปิดกล้องครั้งแรก
+    open_capture()
+
+    fail_count = 0  # นับจำนวนเฟรมที่อ่านไม่ได้ติดกัน
 
     while True:
+        # ---------------- อ่านเฟรมจาก ESP32 ----------------
         ret, frame = cap.read()
         if not ret or frame is None:
-            print("[CAP] อ่านภาพจาก ESP32 ไม่ได้")
+            fail_count += 1
+            print(f"[CAP] อ่านภาพจาก ESP32 ไม่ได้ (count={fail_count})")
+
+            # ถ้าอ่านไม่ได้หลายครั้งติดกัน -> ลอง reconnect ใหม่
+            if fail_count >= 30:
+                print("[CAP] too many failures, reconnecting...")
+                open_capture()
+                fail_count = 0
+
+            time.sleep(0.1)
             continue
+
+        # ถ้าอ่านได้ รีเซ็ตเคาน์เตอร์
+        fail_count = 0
 
         frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
 
-        # ---------- Recording ----------
+        # ---------------- Recording ----------------
         if recording and video_writer is not None:
             video_writer.write(frame)
             frames_left_to_record -= 1
@@ -152,19 +206,21 @@ def processing_loop():
                     current_video_local_path = None
                     current_event_id = None
 
-        # ---------- Cooldown ----------
+        # ---------------- Cooldown ----------------
         now = datetime.now(timezone.utc)
-        if last_detect_time:
-            if (now - last_detect_time).total_seconds() < COOLDOWN_SECONDS:
-                with frame_lock:
-                    latest_frame = frame.copy()
+        if (
+            last_detect_time
+            and (now - last_detect_time).total_seconds() < COOLDOWN_SECONDS
+        ):
+            with frame_lock:
+                latest_frame = frame.copy()
 
-                cv2.imshow("YOLO + ESP32-CAM", frame)
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    break
-                continue
+            cv2.imshow("YOLO + ESP32-CAM", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
+                break
+            continue
 
-        # ---------- YOLO ----------
+        # ---------------- YOLO detect ----------------
         results = model(frame, imgsz=FRAME_WIDTH, verbose=False)[0]
         people_count = 0
 
@@ -173,6 +229,7 @@ def processing_loop():
             conf = float(box.conf[0])
             x1, y1, x2, y2 = map(int, box.xyxy[0])
 
+            # class 0 = person
             if cls_id == 0 and conf > 0.5:
                 people_count += 1
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -186,7 +243,7 @@ def processing_loop():
                     2,
                 )
 
-        # ---------- Detected ----------
+        # ---------------- Detected ----------------
         if people_count > 0 and not recording:
             print(f"[DETECT] found {people_count} person(s)")
 
@@ -194,8 +251,10 @@ def processing_loop():
             current_event_id = event_id
             last_detect_time = now
 
+            # รูป snapshot
             upload_image_to_firebase(frame, event_id, people_count)
 
+            # เตรียมไฟล์ video (AVI) สำหรับอัด
             current_video_local_path = os.path.join(
                 tempfile.gettempdir(), f"{event_id}_video.avi"
             )
@@ -210,17 +269,21 @@ def processing_loop():
                 frames_left_to_record = FRAMES_TO_RECORD
                 recording = True
                 print("[REC] start recording:", current_video_local_path)
+            else:
+                print("[REC] cannot open VideoWriter")
 
-        # ---------- Update frame for streaming ----------
+        # ---------------- Update latest_frame ----------------
         with frame_lock:
             latest_frame = frame.copy()
 
-        # ---------- Show local window ----------
+        # ---------------- Show local window ----------------
         cv2.imshow("YOLO + ESP32-CAM", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-    cap.release()
+    # ออกจาก loop
+    if cap is not None:
+        cap.release()
     cv2.destroyAllWindows()
 
 
@@ -234,7 +297,9 @@ def gen_frames():
     while True:
         with frame_lock:
             frame = latest_frame.copy() if latest_frame is not None else None
+
         if frame is None:
+            time.sleep(0.05)
             continue
 
         ret, buffer = cv2.imencode(".jpg", frame)
@@ -242,13 +307,17 @@ def gen_frames():
             continue
 
         yield (
-            b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
+            b"--frame\r\n"
+            b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n"
         )
 
 
 @app.route("/video_feed")
 def video_feed():
-    return Response(gen_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
+    return Response(
+        gen_frames(),
+        mimetype="multipart/x-mixed-replace; boundary=frame",
+    )
 
 
 # =========================
@@ -258,4 +327,5 @@ if __name__ == "__main__":
     t_proc = threading.Thread(target=processing_loop, daemon=True)
     t_proc.start()
 
+    # Flask live stream
     app.run(host="0.0.0.0", port=5000)

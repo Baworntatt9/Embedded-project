@@ -7,6 +7,7 @@ import {
   Lock,
   Unlock,
 } from "lucide-react";
+import { JSX } from "react";
 
 type SensorType =
   | "temperature"
@@ -17,30 +18,46 @@ type SensorType =
 
 type SensorCardProps = {
   sensor: SensorType;
-  value: number | boolean | null;
+  value: any; // ใช้ number/boolean แล้วแต่ sensor
   onToggle?: () => void;
+
+  // ใช้เฉพาะกับ controlDoor: สถานะจริงจาก ESP32 / Firebase
+  lockStatus?: "Locked" | "Unlocked" | null;
 };
 
 type StatusLevel = "normal" | "warning" | "critical";
+
+type SensorConfig = {
+  label: string;
+  unit: string;
+  displayValue: string;
+  icon: JSX.Element;
+  statusLabel: string;
+  statusLevel: StatusLevel;
+  isLoading?: boolean; // แสดงวงกลมหมุนตอน in-progress
+};
 
 export default function SensorCard({
   sensor,
   value,
   onToggle,
+  lockStatus,
 }: SensorCardProps) {
-  const config = getSensorConfig(sensor, value);
+  const config = getSensorConfig(sensor, value, lockStatus);
+
+  // สำหรับ controlDoor: isLocked ใช้จาก "คำสั่ง" (controlLockDoor)
   const isLocked = sensor === "controlDoor" ? Boolean(value) : false;
 
   return (
     <div className="relative w-full flex bg-white rounded-2xl shadow-sm overflow-hidden">
-      {/* Left color bar */}
+      {/* left color bar */}
       <div
         className={`w-2 rounded-l-2xl ${getStatusColor(config.statusLevel)}`}
       />
 
-      {/* Content */}
+      {/* content */}
       <div className="flex-1 p-4 flex flex-col gap-3 pb-10">
-        {/* top row */}
+        {/* top row: icon + badge */}
         <div className="flex items-start justify-between">
           <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center">
             {config.icon}
@@ -60,17 +77,26 @@ export default function SensorCard({
         {/* label */}
         <p className="text-sm text-neutral-500">{config.label}</p>
 
-        {/* value */}
-        <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-semibold">{config.displayValue}</span>
+        {/* value + unit + loading */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-baseline gap-1">
+            <span className="text-3xl font-semibold">
+              {config.displayValue}
+            </span>
 
-          {config.unit && (
-            <span className="text-sm text-neutral-400">{config.unit}</span>
+            {config.unit && (
+              <span className="text-sm text-neutral-400">{config.unit}</span>
+            )}
+          </div>
+
+          {/* วงกลมหมุนตอนกำลัง Lock/Unlock / in-progress */}
+          {config.isLoading && (
+            <span className="inline-block h-4 w-4 rounded-full border-2 border-neutral-300 border-t-transparent animate-spin" />
           )}
         </div>
       </div>
 
-      {/* Toggle bottom-right (does NOT expand card height) */}
+      {/* toggle bottom-right */}
       {sensor === "controlDoor" && onToggle && (
         <button
           type="button"
@@ -101,8 +127,10 @@ export default function SensorCard({
 --------------------------------------------------- */
 function getSensorConfig(
   sensor: SensorType,
-  rawValue: number | boolean | null
-) {
+  rawValue: number | boolean | null,
+  lockStatus?: "Locked" | "Unlocked" | null
+): SensorConfig {
+  // doorStatus = ประตูเปิด/ปิด
   if (sensor === "doorStatus") {
     const isOpen = Boolean(rawValue);
     return {
@@ -115,33 +143,56 @@ function getSensorConfig(
         <DoorClosed size={20} className="text-orange-500" />
       ),
       statusLabel: "",
-      statusLevel: isOpen
-        ? ("warning" as StatusLevel)
-        : ("normal" as StatusLevel),
+      statusLevel: isOpen ? "warning" : "normal",
     };
   }
 
+  // controlDoor = คุม lock + แสดงสถานะจาก lockStatus
   if (sensor === "controlDoor") {
-    const isLocked = Boolean(rawValue);
+    const commandLocked = Boolean(rawValue); // controlLockDoor (true = สั่งให้ Lock)
+
+    const normalizedStatus = lockStatus ? lockStatus.toLowerCase() : null; // "locked" / "unlocked"
+    const statusLocked = normalizedStatus === "locked";
+
+    // inProgress = ถ้า status ยังไม่มี หรือ status กับ command ขัดกัน
+    const inProgress = !lockStatus || statusLocked !== commandLocked;
+
+    let displayValue: string;
+    let statusLabel: string;
+    let statusLevel: StatusLevel;
+
+    if (inProgress) {
+      displayValue = commandLocked ? "Locking..." : "Unlocking...";
+      statusLabel = "In progress";
+      statusLevel = "warning";
+    } else {
+      displayValue = statusLocked ? "Locked" : "Unlocked";
+      statusLabel = statusLocked ? "Secure" : "Not Locked";
+      statusLevel = statusLocked ? "normal" : "warning";
+    }
+
+    // icon: ใช้สถานะจริง ถ้ามี lockStatus, ไม่งั้น fallback ตาม command
+    const showLockedIcon = lockStatus != null ? statusLocked : commandLocked;
+
     return {
       label: "Door Lock Control",
       unit: "",
-      displayValue: isLocked ? "Locked" : "Unlocked",
-      icon: isLocked ? (
+      displayValue,
+      icon: showLockedIcon ? (
         <Lock size={20} className="text-orange-500" />
       ) : (
         <Unlock size={20} className="text-orange-500" />
       ),
-      // status label might be optional
-      statusLabel: isLocked ? "Secure" : "Not Locked",
-      statusLevel: isLocked
-        ? ("normal" as StatusLevel)
-        : ("warning" as StatusLevel),
+      statusLabel,
+      statusLevel,
+      isLoading: inProgress,
     };
   }
 
+  // sensor ปกติอื่น ๆ: temperature / light / humidity
   const value = typeof rawValue === "number" ? rawValue : 0;
 
+  // Temperature
   if (sensor === "temperature") {
     let status: StatusLevel = "normal";
     let label = "Normal";
@@ -167,28 +218,35 @@ function getSensorConfig(
     };
   }
 
+  // Light: raw ADC 0–4095, 0 = bright, 4095 = dark
   if (sensor === "light") {
+    const lux = typeof rawValue === "number" ? rawValue : 0;
+
     let status: StatusLevel = "normal";
     let label = "Normal";
 
-    if (value < 200) {
+    if (lux < 150) {
       status = "warning";
-      label = "Too dark";
-    } else if (value > 800) {
+      label = "Dark";
+    } else if (lux > 800) {
       status = "warning";
-      label = "Too bright";
+      label = "Bright";
+    } else {
+      status = "normal";
+      label = "Normal";
     }
 
     return {
       label: "Light",
       unit: "lx",
-      displayValue: value.toFixed(0),
+      displayValue: lux.toFixed(0),
       icon: <Lightbulb size={20} className="text-orange-500" />,
       statusLabel: label,
       statusLevel: status,
     };
   }
 
+  // Humidity
   let status: StatusLevel = "normal";
   let label = "Comfort";
 

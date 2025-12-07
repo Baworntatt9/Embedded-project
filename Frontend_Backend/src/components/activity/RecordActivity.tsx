@@ -3,10 +3,10 @@
 import { useState } from "react";
 import EventCard from "../card/EventCard";
 import EventVideoModal from "../modal/EventVideoModal";
-import { useMotionAlerts, EventItem } from "@/hooks/useMotionAlerts";
+import { usePeopleAlerts, EventItem } from "@/hooks/usePeopleAlerts";
 
 export default function RecordActivity() {
-  const { events, loading } = useMotionAlerts();
+  const { events, loading } = usePeopleAlerts();
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
 
@@ -37,9 +37,9 @@ export default function RecordActivity() {
       {/* List */}
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {loading ? (
-          <p className="text-xs text-neutral-400">Loading motion logs...</p>
+          <p className="text-xs text-neutral-400">Loading people logs...</p>
         ) : filteredEvents.length === 0 ? (
-          <p className="text-xs text-neutral-400">No motion detected</p>
+          <p className="text-xs text-neutral-400">No people detected</p>
         ) : (
           filteredEvents.map((event) => (
             <EventCard

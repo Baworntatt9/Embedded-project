@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const STREAM_URL = "http://192.168.224.59:5000/video_feed"; // use with Flask server
+const STREAM_URL = "http://172.20.10.2:5000/video_feed"; // use with Flask server
 
 export default function LiveActivity() {
   const [error, setError] = useState(false);

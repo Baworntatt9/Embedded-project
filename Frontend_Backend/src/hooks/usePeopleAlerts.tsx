@@ -63,7 +63,7 @@ function parseFromFileName(fileName: string) {
   };
 }
 
-export function useMotionAlerts() {
+export function usePeopleAlerts() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
 

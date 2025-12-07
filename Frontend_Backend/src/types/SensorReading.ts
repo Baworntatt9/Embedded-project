@@ -4,3 +4,8 @@ export type SensorReading = {
   light: number | null;
   doorStatus: boolean | null;
 };
+
+export type controlDoorType = {
+  controlLockDoor: boolean | null;
+  lockStatus: "locked" | "unlocked" | null;
+};
