@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Thermometer,
   Lightbulb,
@@ -7,7 +9,8 @@ import {
   Lock,
   Unlock,
 } from "lucide-react";
-import { JSX } from "react";
+import type { JSX } from "react";
+import { useEffect, useState } from "react";
 
 type SensorType =
   | "temperature"
@@ -43,10 +46,49 @@ export default function SensorCard({
   onToggle,
   lockStatus,
 }: SensorCardProps) {
-  const config = getSensorConfig(sensor, value, lockStatus);
+  // pendingTargetLocked:
+  // - null  = ตอนนี้ไม่ได้รอผลจากการกด toggle
+  // - true  = ผู้ใช้เพิ่งกดเพื่อ "อยากให้เป็น Locked"
+  // - false = ผู้ใช้เพิ่งกดเพื่อ "อยากให้เป็น Unlocked"
+  const [pendingTargetLocked, setPendingTargetLocked] = useState<
+    boolean | null
+  >(null);
 
-  // สำหรับ controlDoor: isLocked ใช้จาก "คำสั่ง" (controlLockDoor)
-  const isLocked = sensor === "controlDoor" ? Boolean(value) : false;
+  const config = getSensorConfig(
+    sensor,
+    value,
+    lockStatus,
+    pendingTargetLocked
+  );
+
+  // ให้ toggle เชื่อ lockStatus ก่อนเสมอ
+  const isLocked =
+    sensor === "controlDoor"
+      ? lockStatus != null
+        ? lockStatus.toLowerCase() === "locked"
+        : Boolean(value)
+      : false;
+
+  // ถ้า lockStatus อัปเดตแล้วตรงกับเป้าหมายที่ผู้ใช้กด ก็ถือว่าเสร็จ → ปิด loading
+  useEffect(() => {
+    if (sensor !== "controlDoor") return;
+    if (pendingTargetLocked == null) return;
+
+    const normalizedStatus = lockStatus ? lockStatus.toLowerCase() : null;
+    const statusLocked = normalizedStatus === "locked";
+
+    if (normalizedStatus && statusLocked === pendingTargetLocked) {
+      setPendingTargetLocked(null);
+    }
+  }, [sensor, lockStatus, pendingTargetLocked]);
+
+  const handleToggleClick = () => {
+    if (!onToggle) return;
+
+    const target = !isLocked; // อยากให้ไปเป็นสถานะตรงข้าม
+    setPendingTargetLocked(target); // บอกว่า "ตอนนี้คือคำสั่งจาก user"
+    onToggle();
+  };
 
   return (
     <div className="relative w-full flex bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -89,7 +131,7 @@ export default function SensorCard({
             )}
           </div>
 
-          {/* วงกลมหมุนตอนกำลัง Lock/Unlock / in-progress */}
+          {/* วงกลมหมุนตอนกำลัง Lock/Unlock / in-progress (จาก user command เท่านั้น) */}
           {config.isLoading && (
             <span className="inline-block h-4 w-4 rounded-full border-2 border-neutral-300 border-t-transparent animate-spin" />
           )}
@@ -100,7 +142,7 @@ export default function SensorCard({
       {sensor === "controlDoor" && onToggle && (
         <button
           type="button"
-          onClick={() => void onToggle()}
+          onClick={handleToggleClick}
           className="absolute bottom-4 right-4 inline-flex items-center"
         >
           <span
@@ -128,7 +170,8 @@ export default function SensorCard({
 function getSensorConfig(
   sensor: SensorType,
   rawValue: number | boolean | null,
-  lockStatus?: "Locked" | "Unlocked" | null
+  lockStatus?: "Locked" | "Unlocked" | null,
+  pendingTargetLocked?: boolean | null
 ): SensorConfig {
   // doorStatus = ประตูเปิด/ปิด
   if (sensor === "doorStatus") {
@@ -147,32 +190,46 @@ function getSensorConfig(
     };
   }
 
-  // controlDoor = คุม lock + แสดงสถานะจาก lockStatus
+  // controlDoor = คุม lock + แสดงสถานะจาก lockStatus + สถานะ pending จากการกด toggle
   if (sensor === "controlDoor") {
     const commandLocked = Boolean(rawValue); // controlLockDoor (true = สั่งให้ Lock)
 
     const normalizedStatus = lockStatus ? lockStatus.toLowerCase() : null; // "locked" / "unlocked"
+    const hasStatus =
+      normalizedStatus === "locked" || normalizedStatus === "unlocked";
     const statusLocked = normalizedStatus === "locked";
 
-    // inProgress = ถ้า status ยังไม่มี หรือ status กับ command ขัดกัน
-    const inProgress = !lockStatus || statusLocked !== commandLocked;
+    // ✅ แสดง loading เฉพาะตอนมาจาก user toggle เท่านั้น
+    let inProgress = false;
+    if (pendingTargetLocked != null) {
+      // ถ้ากด toggle แล้ว และสถานะจริงยังไม่เท่ากับเป้าหมาย -> loading
+      inProgress = !hasStatus || statusLocked !== pendingTargetLocked;
+    }
 
     let displayValue: string;
     let statusLabel: string;
     let statusLevel: StatusLevel;
 
-    if (inProgress) {
-      displayValue = commandLocked ? "Locking..." : "Unlocking...";
+    if (inProgress && pendingTargetLocked != null) {
+      displayValue = pendingTargetLocked ? "Locking..." : "Unlocking...";
       statusLabel = "In progress";
       statusLevel = "warning";
     } else {
-      displayValue = statusLocked ? "Locked" : "Unlocked";
-      statusLabel = statusLocked ? "Secure" : "Not Locked";
-      statusLevel = statusLocked ? "normal" : "warning";
+      // เคสปกติ: ใช้สถานะจริงจาก lockStatus ถ้ามี
+      if (hasStatus) {
+        displayValue = statusLocked ? "Locked" : "Unlocked";
+        statusLabel = statusLocked ? "Secure" : "Not Locked";
+        statusLevel = statusLocked ? "normal" : "warning";
+      } else {
+        // ยังไม่มี lockStatus เลย (เปิดแอปครั้งแรก / ข้อมูลยังไม่มา)
+        displayValue = commandLocked ? "Locked" : "Unlocked";
+        statusLabel = commandLocked ? "Secure" : "Not Locked";
+        statusLevel = commandLocked ? "normal" : "warning";
+      }
     }
 
     // icon: ใช้สถานะจริง ถ้ามี lockStatus, ไม่งั้น fallback ตาม command
-    const showLockedIcon = lockStatus != null ? statusLocked : commandLocked;
+    const showLockedIcon = hasStatus ? statusLocked : commandLocked;
 
     return {
       label: "Door Lock Control",
@@ -218,7 +275,7 @@ function getSensorConfig(
     };
   }
 
-  // Light: raw ADC 0–4095, 0 = bright, 4095 = dark
+  // Light: raw ADC 0–4095, 0 = bright, 4095 = dark (ตอนนี้สมมติว่ารับเป็นค่า lux แล้ว)
   if (sensor === "light") {
     const lux = typeof rawValue === "number" ? rawValue : 0;
 
