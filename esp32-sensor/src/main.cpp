@@ -10,7 +10,10 @@
 uint8_t broadcastAddress[] = {0x44, 0x1D, 0x64, 0xFA, 0x0D, 0x44}; 
 
 // WiFi Channel
-#define WIFI_CHANNEL 6 
+#define WIFI_CHANNEL 6
+
+int simulatedNodeID = 1; 
+const int TOTAL_NODES = 5; // สมมติว่าเรามี 5 เครื่อง
 
 // Pin Definitions
 #define PIN_TRIG    5
@@ -23,12 +26,13 @@ uint8_t broadcastAddress[] = {0x44, 0x1D, 0x64, 0xFA, 0x0D, 0x44};
 // Sensor Settings
 #define DHTTYPE DHT11
 const int MIC_SAMPLE_WINDOW = 50; // ms
-const int MIC_THRESHOLD = 2000;   // ปรับความไวเสียง
+const int MIC_THRESHOLD = 1000;   // ปรับความไวเสียง
 
 // =============================================================
 
 // --- Structures & Objects ---
 typedef struct struct_message {
+  int nodeID;
   float distance;
   int lightVal;
   int hallState;
@@ -135,14 +139,22 @@ void loop() {
   if (isnan(myData.temperature)) myData.temperature = 0.0;
   if (isnan(myData.humidity)) myData.humidity = 0.0;
 
+  myData.nodeID = simulatedNodeID;
+
   // Debug Prints
-  Serial.printf("Dist: %.1f cm | Light: %d | Hall: %d | Mic: %d\n", 
-                myData.distance, myData.lightVal, myData.hallState, myData.micState);
+  Serial.printf("Sent Data as Node: %d\n", simulatedNodeID);
+  Serial.printf("Dist: %.1f cm | Light: %d | Hall: %d | Mic: %d %d\n", 
+                myData.distance, myData.lightVal, myData.hallState, loudness, myData.micState);
   Serial.printf("Temp: %.1f C | Hum: %.1f %%\n", myData.temperature, myData.humidity);
 
   // Send Data
   esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
 
+  simulatedNodeID++;
+  if (simulatedNodeID > TOTAL_NODES) {
+    simulatedNodeID = 1;
+  }
+  
   if (result != ESP_OK) {
     Serial.println("Error sending data");
   }
