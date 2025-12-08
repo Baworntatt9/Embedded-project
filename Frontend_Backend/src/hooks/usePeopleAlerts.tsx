@@ -9,7 +9,7 @@ export type EventItem = {
   title: string;
   time: string;
   date: string;
-  type: "motion";
+  type: "people";
   thumbnail?: string;
   videoUrl: string;
   timestamp: number;
@@ -63,7 +63,7 @@ function parseFromFileName(fileName: string) {
   };
 }
 
-export function useMotionAlerts() {
+export function usePeopleAlerts() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -92,10 +92,10 @@ export function useMotionAlerts() {
 
           return {
             id: index + 1,
-            title: "Motion Detected",
+            title: "People Detected",
             date,
             time,
-            type: "motion" as const,
+            type: "people" as const,
             thumbnail: thumbUrl,
             videoUrl,
             timestamp,

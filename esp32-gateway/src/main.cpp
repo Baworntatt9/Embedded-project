@@ -1,10 +1,10 @@
+#include <ArduinoJson.h>
+#include <ESP_Mail_Client.h> // <--- เพิ่ม Library กลับมา
+#include <HTTPClient.h>
+#include <Stepper.h>
 #include <WiFi.h>
 #include <esp_now.h>
 #include <esp_wpa2.h>
-#include <Stepper.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
-#include <ESP_Mail_Client.h>
 #include "secrets.h"
 
 // ================================================================
@@ -13,7 +13,7 @@
 
 // --- Pins ---
 #define PIN_LED_BUILTIN 2
-#define PIN_BUZZER      4
+#define PIN_BUZZER 4
 #define IN1 19
 #define IN2 18
 #define IN3 5
@@ -88,8 +88,10 @@ const int AUTO_LOCK_DELAY = 1000;
 // ================================================================
 
 void stopStepperPower() {
-  digitalWrite(IN1, LOW); digitalWrite(IN2, LOW); 
-  digitalWrite(IN3, LOW); digitalWrite(IN4, LOW);
+    digitalWrite(IN1, LOW);
+    digitalWrite(IN2, LOW);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
 }
 
 void lockDoor() {
@@ -140,14 +142,17 @@ void connectWiFi() {
 
   Serial.println("[WiFi] Reconnecting...");
 
-  #ifdef USE_WIFI_ENTERPRISE
+#ifdef USE_WIFI_ENTERPRISE
     Serial.println("[WiFi] Connecting Enterprise...");
-    esp_wifi_sta_wpa2_ent_set_identity((uint8_t *)EAP_IDENTITY, strlen(EAP_IDENTITY));
-    esp_wifi_sta_wpa2_ent_set_username((uint8_t *)EAP_USERNAME, strlen(EAP_USERNAME));
-    esp_wifi_sta_wpa2_ent_set_password((uint8_t *)EAP_PASSWORD, strlen(EAP_PASSWORD));
+    esp_wifi_sta_wpa2_ent_set_identity((uint8_t *)EAP_IDENTITY,
+                                       strlen(EAP_IDENTITY));
+    esp_wifi_sta_wpa2_ent_set_username((uint8_t *)EAP_USERNAME,
+                                       strlen(EAP_USERNAME));
+    esp_wifi_sta_wpa2_ent_set_password((uint8_t *)EAP_PASSWORD,
+                                       strlen(EAP_PASSWORD));
     esp_wifi_sta_wpa2_ent_enable();
     WiFi.begin(WIFI_SSID_ENT);
-  #else
+#else
     Serial.println("[WiFi] Connecting Hotspot...");
     WiFi.begin(WIFI_SSID_HOME, WIFI_PASS_HOME);
   #endif

@@ -4,13 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Bell, BedDouble } from "lucide-react";
 import { toast } from "react-toastify";
-import { useMotionAlerts } from "@/hooks/useMotionAlerts";
+import { usePeopleAlerts } from "@/hooks/usePeopleAlerts";
 
-const LAST_SEEN_KEY = "motionAlerts_lastSeen";
+const LAST_SEEN_KEY = "peopleAlerts_lastSeen";
 
 export default function Topbar() {
   const router = useRouter();
-  const { events, loading } = useMotionAlerts();
+  const { events, loading } = usePeopleAlerts();
 
   const [unreadCount, setUnreadCount] = useState(0);
   const prevUnreadRef = useRef(0); // ไว้เทียบว่า unread เพิ่มขึ้นไหม
@@ -31,7 +31,7 @@ export default function Topbar() {
     if (loading) return;
 
     if (unreadCount > prevUnreadRef.current && unreadCount > 0) {
-      toast.info("🔔 Motion detected!", {
+      toast.info("🔔 People detected!", {
         position: "top-left",
         autoClose: 5000,
       });
